@@ -299,7 +299,7 @@ function App() {
         {/* TIÊU ĐỀ */}
         <div className="bg-green-600 p-4 text-center rounded-2xl shadow-lg">
           <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-wide">
-            🌾 TÍNH TIỀN LÚA NHANH 🌾
+            TÍNH TIỀN LÚA NHANH
           </h1>
         </div>
 

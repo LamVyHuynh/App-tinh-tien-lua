@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">app_tinh_lua</string>
+    <string name="title_activity_main">app_tinh_lua</string>
+    <string name="package_name">com.haonong.tinhtienlua</string>
+    <string name="custom_url_scheme">com.haonong.tinhtienlua</string>
+</resources>
