@@ -38,7 +38,7 @@ function App() {
     setDanhSachThuongLai(danhSachMoi);
   };
 
-  // Hàm chuyển ô tiếp theo tự động
+  // Hàm chuyển ô tiếp theo tự động và sinh ghe nếu hết bảng
   const chuyenOtiepTheo = (gheIndex, hangIndex, cotIndex) => {
     let hangMoi = hangIndex + 1;
     let cotMoi = cotIndex;
@@ -103,10 +103,23 @@ function App() {
     }
   };
 
-  // 2. Cập nhật số kg trong bảng 5x5 (Hỗ trợ số thập phân)
-  const handleInputChange = (gheId, hangIndex, cotIndex, e) => {
+  // 2. Cập nhật số kg: Nếu nhập 3 chữ số (VD: 124) tự động biến thành 12.4 và nhảy ô. Hoặc nhập đúng chuẩn XX.X cũng nhảy ô.
+  const handleInputChange = (gheId, gheIndex, hangIndex, cotIndex, e) => {
     let giaTri = e.target.value;
-    giaTri = giaTri.replace(",", "."); // Hỗ trợ dấu phẩy thành dấu chấm thập phân
+    giaTri = giaTri.replace(",", "."); // Hỗ trợ đổi dấu phẩy thành dấu chấm
+
+    let giaTriCanLuu = giaTri;
+    let coTheChuyenO = false;
+
+    // Trường hợp 1: Nhập 3 chữ số liền mạch (VD: "124") -> Tự động thành "12.4"
+    if (/^\d{3}$/.test(giaTri)) {
+      giaTriCanLuu = giaTri.slice(0, 2) + "." + giaTri.slice(2);
+      coTheChuyenO = true;
+    }
+    // Trường hợp 2: Người dùng chủ động nhập đúng chuẩn dạng XX.X (VD: "45.6")
+    else if (/^\d{2}\.\d$/.test(giaTri)) {
+      coTheChuyenO = true;
+    }
 
     const danhSachMoi = danhSachThuongLai.map((tl) => {
       if (tl.id === thuongLaiDangChonId) {
@@ -114,7 +127,8 @@ function App() {
           if (ghe.id === gheId) {
             const bangMoi = ghe.bangKg.map((hang, hIdx) =>
               hang.map((col, cIdx) => {
-                if (hIdx === hangIndex && cIdx === cotIndex) return giaTri;
+                if (hIdx === hangIndex && cIdx === cotIndex)
+                  return giaTriCanLuu;
                 return col;
               }),
             );
@@ -127,25 +141,16 @@ function App() {
       return tl;
     });
     setDanhSachThuongLai(danhSachMoi);
-  };
 
-  // 3. Xử lý khi rời ô hoặc nhập xong (Tự định dạng thập phân và nhảy ô)
-  const handleInputBlur = (gheId, gheIndex, hangIndex, cotIndex, e) => {
-    let giaTri = e.target.value.trim();
-    if (giaTri === "") return;
-
-    let soKiemTra = parseFloat(giaTri);
-    if (!isNaN(soKiemTra)) {
-      // Nếu là số nguyên hợp lệ (VD: gõ 45), tự động chuyển thành định dạng thập phân hoặc giữ nguyên nếu đã có dấu chấm
-      // Ở đây nếu người dùng muốn tự động thành dạng thập phân, ta có thể để nguyên hoặc định dạng tùy ý,
-      // nhưng bản chất parseFloat sẽ tự tính toán chuẩn xác.
-
-      // Tự động chuyển sang ô kế tiếp ngay sau khi nhập xong ô hiện tại
-      chuyenOtiepTheo(gheIndex, hangIndex, cotIndex);
+    // Nếu đã thỏa mãn điều kiện tự động chuyển ô
+    if (coTheChuyenO) {
+      setTimeout(() => {
+        chuyenOtiepTheo(gheIndex, hangIndex, cotIndex);
+      }, 150);
     }
   };
 
-  // Xử lý phím Enter thủ công nếu cần
+  // Xử lý phím Enter thủ công hoặc phím điều hướng
   const handleKeyDown = (gheIndex, hangIndex, cotIndex, e) => {
     if (e.key === "Enter" || e.keyCode === 13) {
       e.preventDefault();
@@ -275,7 +280,7 @@ function App() {
     setDanhSachThuongLai(danhSachMoi);
   };
 
-  // Tính toán số liệu (Hỗ trợ số thập phân)
+  // Tính toán số liệu chuẩn xác
   const ketQuaThuongLai = danhSachThuongLai.map((tl) => {
     let tongKgTatCaGhe = 0;
     const danhSachGheTinhToan = tl.danhSachGhe.map((ghe) => {
@@ -479,14 +484,6 @@ function App() {
                               value={colVal}
                               onChange={(e) =>
                                 handleInputChange(
-                                  ghe.id,
-                                  hangIndex,
-                                  cotIndex,
-                                  e,
-                                )
-                              }
-                              onBlur={(e) =>
-                                handleInputBlur(
                                   ghe.id,
                                   gheIndex,
                                   hangIndex,
