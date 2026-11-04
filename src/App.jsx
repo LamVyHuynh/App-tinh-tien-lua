@@ -38,9 +38,76 @@ function App() {
     setDanhSachThuongLai(danhSachMoi);
   };
 
-  // 2. Cập nhật số kg trong bảng 5x5
+  // Hàm chuyển ô tiếp theo tự động
+  const chuyenOtiepTheo = (gheIndex, hangIndex, cotIndex) => {
+    let hangMoi = hangIndex + 1;
+    let cotMoi = cotIndex;
+    let gheIdxMoi = gheIndex;
+
+    if (hangMoi >= 5) {
+      hangMoi = 0;
+      cotMoi = cotIndex + 1;
+      if (cotMoi >= 5) {
+        cotMoi = 0;
+        gheIdxMoi = gheIndex + 1;
+
+        // Nếu hết ghe hiện tại -> Tự động sinh Ghe mới
+        if (gheIdxMoi >= thuongLaiHienTai.danhSachGhe.length) {
+          const gheMoiId =
+            thuongLaiHienTai.danhSachGhe.length > 0
+              ? thuongLaiHienTai.danhSachGhe[
+                  thuongLaiHienTai.danhSachGhe.length - 1
+                ].id + 1
+              : 1;
+
+          const gheMoiMoi = {
+            id: gheMoiId,
+            tenGhe: `Ghe số ${gheMoiId}`,
+            bangKg: Array(5)
+              .fill()
+              .map(() => Array(5).fill("")),
+          };
+
+          const danhSachMoi = danhSachThuongLai.map((tl) => {
+            if (tl.id === thuongLaiDangChonId) {
+              return {
+                ...tl,
+                danhSachGhe: [...tl.danhSachGhe, gheMoiMoi],
+              };
+            }
+            return tl;
+          });
+
+          setDanhSachThuongLai(danhSachMoi);
+
+          setTimeout(() => {
+            if (
+              inputRefs.current[gheIdxMoi] &&
+              inputRefs.current[gheIdxMoi][0] &&
+              inputRefs.current[gheIdxMoi][0][0]
+            ) {
+              inputRefs.current[gheIdxMoi][0][0].focus();
+            }
+          }, 50);
+          return;
+        }
+      }
+    }
+
+    if (
+      inputRefs.current[gheIdxMoi] &&
+      inputRefs.current[gheIdxMoi][hangMoi] &&
+      inputRefs.current[gheIdxMoi][hangMoi][cotMoi]
+    ) {
+      inputRefs.current[gheIdxMoi][hangMoi][cotMoi].focus();
+    }
+  };
+
+  // 2. Cập nhật số kg trong bảng 5x5 (Hỗ trợ số thập phân)
   const handleInputChange = (gheId, hangIndex, cotIndex, e) => {
-    const giaTri = e.target.value;
+    let giaTri = e.target.value;
+    giaTri = giaTri.replace(",", "."); // Hỗ trợ dấu phẩy thành dấu chấm thập phân
+
     const danhSachMoi = danhSachThuongLai.map((tl) => {
       if (tl.id === thuongLaiDangChonId) {
         const danhSachGheMoi = tl.danhSachGhe.map((ghe) => {
@@ -62,71 +129,27 @@ function App() {
     setDanhSachThuongLai(danhSachMoi);
   };
 
-  // 3. Tự động chuyển ô và tự sinh ghe mới khi gõ hết bảng
+  // 3. Xử lý khi rời ô hoặc nhập xong (Tự định dạng thập phân và nhảy ô)
+  const handleInputBlur = (gheId, gheIndex, hangIndex, cotIndex, e) => {
+    let giaTri = e.target.value.trim();
+    if (giaTri === "") return;
+
+    let soKiemTra = parseFloat(giaTri);
+    if (!isNaN(soKiemTra)) {
+      // Nếu là số nguyên hợp lệ (VD: gõ 45), tự động chuyển thành định dạng thập phân hoặc giữ nguyên nếu đã có dấu chấm
+      // Ở đây nếu người dùng muốn tự động thành dạng thập phân, ta có thể để nguyên hoặc định dạng tùy ý,
+      // nhưng bản chất parseFloat sẽ tự tính toán chuẩn xác.
+
+      // Tự động chuyển sang ô kế tiếp ngay sau khi nhập xong ô hiện tại
+      chuyenOtiepTheo(gheIndex, hangIndex, cotIndex);
+    }
+  };
+
+  // Xử lý phím Enter thủ công nếu cần
   const handleKeyDown = (gheIndex, hangIndex, cotIndex, e) => {
-    if (e.key === "Enter" || e.key === "ArrowDown") {
+    if (e.key === "Enter" || e.keyCode === 13) {
       e.preventDefault();
-      let hangMoi = hangIndex + 1;
-      let cotMoi = cotIndex;
-      let gheIdxMoi = gheIndex;
-
-      if (hangMoi >= 5) {
-        hangMoi = 0;
-        cotMoi = cotIndex + 1;
-        if (cotMoi >= 5) {
-          cotMoi = 0;
-          gheIdxMoi = gheIndex + 1;
-
-          // Nếu hết ghe hiện tại -> Tự động sinh Ghe mới
-          if (gheIdxMoi >= thuongLaiHienTai.danhSachGhe.length) {
-            const gheMoiId =
-              thuongLaiHienTai.danhSachGhe.length > 0
-                ? thuongLaiHienTai.danhSachGhe[
-                    thuongLaiHienTai.danhSachGhe.length - 1
-                  ].id + 1
-                : 1;
-
-            const gheMoiMoi = {
-              id: gheMoiId,
-              tenGhe: `Ghe số ${gheMoiId}`,
-              bangKg: Array(5)
-                .fill()
-                .map(() => Array(5).fill("")),
-            };
-
-            const danhSachMoi = danhSachThuongLai.map((tl) => {
-              if (tl.id === thuongLaiDangChonId) {
-                return {
-                  ...tl,
-                  danhSachGhe: [...tl.danhSachGhe, gheMoiMoi],
-                };
-              }
-              return tl;
-            });
-
-            setDanhSachThuongLai(danhSachMoi);
-
-            setTimeout(() => {
-              if (
-                inputRefs.current[gheIdxMoi] &&
-                inputRefs.current[gheIdxMoi][0] &&
-                inputRefs.current[gheIdxMoi][0][0]
-              ) {
-                inputRefs.current[gheIdxMoi][0][0].focus();
-              }
-            }, 50);
-            return;
-          }
-        }
-      }
-
-      if (
-        inputRefs.current[gheIdxMoi] &&
-        inputRefs.current[gheIdxMoi][hangMoi] &&
-        inputRefs.current[gheIdxMoi][hangMoi][cotMoi]
-      ) {
-        inputRefs.current[gheIdxMoi][hangMoi][cotMoi].focus();
-      }
+      chuyenOtiepTheo(gheIndex, hangIndex, cotIndex);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       let hangMoi = hangIndex - 1;
@@ -252,7 +275,7 @@ function App() {
     setDanhSachThuongLai(danhSachMoi);
   };
 
-  // Tính toán số liệu
+  // Tính toán số liệu (Hỗ trợ số thập phân)
   const ketQuaThuongLai = danhSachThuongLai.map((tl) => {
     let tongKgTatCaGhe = 0;
     const danhSachGheTinhToan = tl.danhSachGhe.map((ghe) => {
@@ -269,7 +292,7 @@ function App() {
       }, 0);
 
       tongKgTatCaGhe += tongKgGhe;
-      return { ...ghe, tongKgGhe, soBaoGhe };
+      return { ...ghe, tongKgGhe: Math.round(tongKgGhe * 100) / 100, soBaoGhe };
     });
 
     const gia = parseFloat(tl.donGia) || 0;
@@ -279,7 +302,7 @@ function App() {
     return {
       ...tl,
       danhSachGhe: danhSachGheTinhToan,
-      tongKgTatCaGhe,
+      tongKgTatCaGhe: Math.round(tongKgTatCaGhe * 100) / 100,
       thanhTien,
     };
   });
@@ -303,7 +326,7 @@ function App() {
           </h1>
         </div>
 
-        {/* PHẦN 1: CHỌN THƯƠNG LÁI (DẠNG NÚT BẤM NGANG TO RÕ) */}
+        {/* PHẦN 1: CHỌN THƯƠNG LÁI */}
         <div className="bg-white p-4 rounded-2xl shadow-md border border-gray-200 space-y-3">
           <p className="text-sm font-bold text-gray-500 uppercase">
             Chọn Thương Lái:
@@ -441,6 +464,7 @@ function App() {
                             <input
                               type="text"
                               inputMode="decimal"
+                              enterKeyHint="next"
                               ref={(el) => {
                                 if (!inputRefs.current[gheIndex]) {
                                   inputRefs.current[gheIndex] = [];
@@ -456,6 +480,15 @@ function App() {
                               onChange={(e) =>
                                 handleInputChange(
                                   ghe.id,
+                                  hangIndex,
+                                  cotIndex,
+                                  e,
+                                )
+                              }
+                              onBlur={(e) =>
+                                handleInputBlur(
+                                  ghe.id,
+                                  gheIndex,
                                   hangIndex,
                                   cotIndex,
                                   e,
