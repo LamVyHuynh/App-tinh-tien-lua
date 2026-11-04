@@ -421,7 +421,7 @@ function App() {
         {tlKetQuaHienTai.danhSachGhe.map((ghe, gheIndex) => (
           <div
             key={ghe.id}
-            className="bg-white rounded-2xl shadow-md border border-gray-200 p-4 md:p-5 space-y-3"
+            className="bg-white rounded-2xl shadow-md border border-gray-200 p-3 md:p-5 space-y-3"
           >
             <div className="flex justify-between items-center border-b pb-2">
               <h3 className="text-lg font-black text-gray-800 uppercase">
@@ -448,14 +448,24 @@ function App() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="w-full border-collapse table-fixed">
                   <thead>
                     <tr className="bg-green-100 text-green-900 text-xs">
-                      <th className="p-2 border border-green-200">Cột 1</th>
-                      <th className="p-2 border border-green-200">Cột 2</th>
-                      <th className="p-2 border border-green-200">Cột 3</th>
-                      <th className="p-2 border border-green-200">Cột 4</th>
-                      <th className="p-2 border border-green-200">Cột 5</th>
+                      <th className="p-1.5 border border-green-200 w-1/5">
+                        Cột 1
+                      </th>
+                      <th className="p-1.5 border border-green-200 w-1/5">
+                        Cột 2
+                      </th>
+                      <th className="p-1.5 border border-green-200 w-1/5">
+                        Cột 3
+                      </th>
+                      <th className="p-1.5 border border-green-200 w-1/5">
+                        Cột 4
+                      </th>
+                      <th className="p-1.5 border border-green-200 w-1/5">
+                        Cột 5
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -464,7 +474,7 @@ function App() {
                         {hang.map((colVal, cotIndex) => (
                           <td
                             key={cotIndex}
-                            className="p-1 border border-gray-200 bg-white"
+                            className="p-0.5 border border-gray-200 bg-white"
                           >
                             <input
                               type="text"
@@ -495,7 +505,7 @@ function App() {
                                 handleKeyDown(gheIndex, hangIndex, cotIndex, e)
                               }
                               placeholder="0"
-                              className="w-full p-2.5 text-center text-xl font-black border-2 border-gray-200 rounded-lg focus:border-green-500 focus:bg-green-50 focus:outline-none"
+                              className="w-full py-2 px-0.5 text-center text-lg md:text-xl font-black border-2 border-gray-200 rounded-lg focus:border-green-500 focus:bg-green-50 focus:outline-none"
                             />
                           </td>
                         ))}
