@@ -16,25 +16,6 @@ function parseSoTien(val) {
   return parseFloat(clean) || 0;
 }
 
-// Hàm đọc nhanh số tiền giúp bà con không bị nhầm lẫn số 0
-function docTienNhanh(soTien) {
-  const num = typeof soTien === "number" ? soTien : parseSoTien(soTien);
-  if (isNaN(num) || num <= 0) return "";
-  if (num >= 1_000_000_000) {
-    const ty = (num / 1_000_000_000).toFixed(2).replace(/\.?0+$/, "");
-    return `(~${ty} tỷ đồng)`;
-  }
-  if (num >= 1_000_000) {
-    const trieu = (num / 1_000_000).toFixed(2).replace(/\.?0+$/, "");
-    return `(~${trieu} triệu đồng)`;
-  }
-  if (num >= 1_000) {
-    const ngan = (num / 1_000).toFixed(1).replace(/\.?0+$/, "");
-    return `(~${ngan} ngàn đồng)`;
-  }
-  return `(${num.toLocaleString("vi-VN")} đ)`;
-}
-
 function App() {
   // 1. Khởi tạo dữ liệu từ LocalStorage để không bao giờ bị mất khi tải lại trang / tắt app
   const [danhSachThuongLai, setDanhSachThuongLai] = useState(() => {
@@ -47,7 +28,10 @@ function App() {
             ...tl,
             donGia: formatTien(tl.donGia ?? "0"),
             tienCoc: formatTien(tl.tienCoc ?? "0"),
-            truBi: tl.truBi !== undefined && tl.truBi !== "" ? String(tl.truBi) : "0",
+            truBi:
+              tl.truBi !== undefined && tl.truBi !== ""
+                ? String(tl.truBi)
+                : "0",
           }));
         }
       }
@@ -94,7 +78,7 @@ function App() {
     try {
       localStorage.setItem(
         "tinh_lua_danh_sach",
-        JSON.stringify(danhSachThuongLai)
+        JSON.stringify(danhSachThuongLai),
       );
     } catch (e) {
       console.error("Lỗi lưu localStorage:", e);
@@ -106,7 +90,7 @@ function App() {
     try {
       localStorage.setItem(
         "tinh_lua_id_chon",
-        JSON.stringify(thuongLaiDangChonId)
+        JSON.stringify(thuongLaiDangChonId),
       );
     } catch {
       // Bỏ qua nếu chưa có dữ liệu lưu
@@ -300,7 +284,7 @@ function App() {
                 if (hIdx === hangIndex && cIdx === cotIndex)
                   return giaTriCanLuu;
                 return col;
-              })
+              }),
             );
             return { ...ghe, bangKg: bangMoi };
           }
@@ -373,7 +357,7 @@ function App() {
     const ten = tlXoa ? tlXoa.tenThuongLai : "thương lái này";
     if (
       !window.confirm(
-        `⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa "${ten}" không?\nToàn bộ số liệu cân của thương lái này sẽ bị xóa hoàn toàn!`
+        `⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa "${ten}" không?\nToàn bộ số liệu cân của thương lái này sẽ bị xóa hoàn toàn!`,
       )
     ) {
       return;
@@ -387,7 +371,7 @@ function App() {
   const handleResetThuongLai = () => {
     if (
       !window.confirm(
-        `⚠️ CẢNH BÁO: Bạn có chắc muốn ĐẶT LẠI từ đầu cho "${thuongLaiHienTai.tenThuongLai}"?\nToàn bộ số kg đã nhập sẽ bị xóa trắng về 0!`
+        `⚠️ CẢNH BÁO: Bạn có chắc muốn ĐẶT LẠI từ đầu cho "${thuongLaiHienTai.tenThuongLai}"?\nToàn bộ số kg đã nhập sẽ bị xóa trắng về 0!`,
       )
     ) {
       return;
@@ -447,7 +431,7 @@ function App() {
     const tenGhe = gheXoa ? gheXoa.tenGhe : "ghe này";
     if (
       !window.confirm(
-        `⚠️ Bạn có chắc chắn muốn xóa "${tenGhe}" không?\nToàn bộ số kg trong ghe này sẽ bị xóa!`
+        `⚠️ Bạn có chắc chắn muốn xóa "${tenGhe}" không?\nToàn bộ số kg trong ghe này sẽ bị xóa!`,
       )
     ) {
       return;
@@ -473,7 +457,7 @@ function App() {
       const tongKgGhe = ghe.bangKg.reduce((tongSo, hang) => {
         const tongHang = hang.reduce(
           (sum, val) => sum + (parseFloat(val) || 0),
-          0
+          0,
         );
         return tongSo + tongHang;
       }, 0);
@@ -515,11 +499,10 @@ function App() {
     const truBiMoiBao = parseFloat(String(tl.truBi).replace(",", ".")) || 0;
 
     // Tính trừ bì
-    const tongKgTruBi =
-      Math.round(tongSoBaoTatCaGhe * truBiMoiBao * 100) / 100;
+    const tongKgTruBi = Math.round(tongSoBaoTatCaGhe * truBiMoiBao * 100) / 100;
     const tongKgThucTinh = Math.max(
       0,
-      Math.round((tongKgTatCaGhe - tongKgTruBi) * 100) / 100
+      Math.round((tongKgTatCaGhe - tongKgTruBi) * 100) / 100,
     );
 
     const tongTienLua = Math.round(tongKgThucTinh * gia);
@@ -543,7 +526,7 @@ function App() {
 
   const tongTienTatCaThuongLai = ketQuaThuongLai.reduce(
     (sum, tl) => sum + Math.max(0, tl.thanhTien),
-    0
+    0,
   );
 
   // Tạo và sao chép phiếu tính tiền lúa gửi Zalo
@@ -551,7 +534,9 @@ function App() {
     const today = new Date().toLocaleDateString("vi-VN");
     let chiTietGhe = "";
     tlKetQuaHienTai.danhSachGhe.forEach((ghe) => {
-      chiTietGhe += `• ${ghe.tenGhe}: ${ghe.soBaoGhe} bao = ${ghe.tongKgGhe.toLocaleString("vi-VN")} kg\n`;
+      chiTietGhe += `• ${ghe.tenGhe}: ${
+        ghe.soBaoGhe
+      } bao = ${ghe.tongKgGhe.toLocaleString("vi-VN")} kg\n`;
     });
 
     const donGiaNum = parseSoTien(tlKetQuaHienTai.donGia);
@@ -563,16 +548,28 @@ function App() {
 🚢 Số lượng ghe: ${tlKetQuaHienTai.danhSachGhe.length} ghe
 📦 Tổng số bao: ${tlKetQuaHienTai.tongSoBaoTatCaGhe} bao
 -------------------------------
-⚖️ Tổng khối lượng cân: ${tlKetQuaHienTai.tongKgTatCaGhe.toLocaleString("vi-VN")} kg
-📦 Trừ bì (${parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) || 0} kg/bao x ${tlKetQuaHienTai.tongSoBaoTatCaGhe} bao): -${tlKetQuaHienTai.tongKgTruBi.toLocaleString("vi-VN")} kg
-🌾 Khối lượng thực tính: ${tlKetQuaHienTai.tongKgThucTinh.toLocaleString("vi-VN")} kg
+⚖️ Tổng khối lượng cân: ${tlKetQuaHienTai.tongKgTatCaGhe.toLocaleString(
+      "vi-VN",
+    )} kg
+📦 Trừ bì (${
+      parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) || 0
+    } kg/bao x ${
+      tlKetQuaHienTai.tongSoBaoTatCaGhe
+    } bao): -${tlKetQuaHienTai.tongKgTruBi.toLocaleString("vi-VN")} kg
+🌾 Khối lượng thực tính: ${tlKetQuaHienTai.tongKgThucTinh.toLocaleString(
+      "vi-VN",
+    )} kg
 💰 Đơn giá: ${donGiaNum.toLocaleString("vi-VN")} đ/kg
 💵 Tổng tiền lúa: ${tlKetQuaHienTai.tongTienLua.toLocaleString("vi-VN")} đ
 💸 Tiền cọc trước: ${tienCocNum.toLocaleString("vi-VN")} đ
 👉 ${
       tlKetQuaHienTai.thanhTien >= 0
-        ? `THƯƠNG LÁI CẦN TRẢ: ${tlKetQuaHienTai.thanhTien.toLocaleString("vi-VN")} đ`
-        : `DƯ CỌC (CẦN THỐI LẠI): ${Math.abs(tlKetQuaHienTai.thanhTien).toLocaleString("vi-VN")} đ`
+        ? `THƯƠNG LÁI CẦN TRẢ: ${tlKetQuaHienTai.thanhTien.toLocaleString(
+            "vi-VN",
+          )} đ`
+        : `DƯ CỌC (CẦN THỐI LẠI): ${Math.abs(
+            tlKetQuaHienTai.thanhTien,
+          ).toLocaleString("vi-VN")} đ`
     }
 -------------------------------
 🚢 Chi tiết từng ghe:
@@ -615,7 +612,9 @@ ${chiTietGhe.trim()}
         {/* THÔNG BÁO SAO CHÉP THÀNH CÔNG */}
         {thongBaoSaoChep && (
           <div className="bg-emerald-500 text-white p-3 rounded-xl text-center font-bold shadow-lg flex items-center justify-center gap-2 animate-bounce">
-            <span>✅ Đã sao chép phiếu tính tiền! Hãy dán vào Zalo để gửi ngay.</span>
+            <span>
+              ✅ Đã sao chép phiếu tính tiền! Hãy dán vào Zalo để gửi ngay.
+            </span>
           </div>
         )}
 
@@ -663,7 +662,9 @@ ${chiTietGhe.trim()}
                 title="Bấm vào để đổi tên thương lái"
                 className="text-xl font-black text-green-700 uppercase bg-green-50/50 hover:bg-green-50 border-b-2 border-dashed border-green-500 focus:border-green-700 focus:bg-white focus:outline-none px-2 py-1 rounded w-full max-w-sm transition-all"
               />
-              <span className="text-xs text-gray-400 whitespace-nowrap">(Chạm để đổi tên)</span>
+              <span className="text-xs text-gray-400 whitespace-nowrap">
+                (Chạm để đổi tên)
+              </span>
             </div>
             <div className="flex gap-2">
               <button
@@ -690,9 +691,6 @@ ${chiTietGhe.trim()}
                 <label className="text-gray-700 font-bold text-sm">
                   Đơn giá (đồng/kg):
                 </label>
-                <span className="text-xs font-semibold text-green-700">
-                  {docTienNhanh(tlKetQuaHienTai.donGia)}
-                </span>
               </div>
               <input
                 type="text"
@@ -713,7 +711,8 @@ ${chiTietGhe.trim()}
                   Trừ bì (kg/bao):
                 </label>
                 <span className="text-xs font-semibold text-amber-700">
-                  {parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) > 0
+                  {parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) >
+                  0
                     ? `Trừ ${tlKetQuaHienTai.truBi} kg/bao`
                     : "Không trừ bì"}
                 </span>
@@ -746,9 +745,6 @@ ${chiTietGhe.trim()}
                 <label className="text-blue-700 font-bold text-sm">
                   Tiền cọc trước (VNĐ):
                 </label>
-                <span className="text-xs font-semibold text-blue-700">
-                  {docTienNhanh(tlKetQuaHienTai.tienCoc)}
-                </span>
               </div>
               <input
                 type="text"
@@ -863,7 +859,7 @@ ${chiTietGhe.trim()}
                                   gheIndex,
                                   hangIndex,
                                   cotIndex,
-                                  e
+                                  e,
                                 )
                               }
                               onKeyDown={(e) =>
@@ -929,7 +925,9 @@ ${chiTietGhe.trim()}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
             <div className="bg-gray-50 p-3 rounded-xl">
-              <p className="text-xs text-gray-500 font-bold uppercase">Tổng kg cân</p>
+              <p className="text-xs text-gray-500 font-bold uppercase">
+                Tổng kg cân
+              </p>
               <p className="text-xl font-black text-gray-800 mt-1">
                 {tlKetQuaHienTai.tongKgTatCaGhe.toLocaleString("vi-VN")} kg
               </p>
@@ -937,7 +935,10 @@ ${chiTietGhe.trim()}
 
             <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
               <p className="text-xs text-amber-700 font-bold uppercase">
-                Trừ bì ({parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) || 0} kg/bao)
+                Trừ bì (
+                {parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) ||
+                  0}{" "}
+                kg/bao)
               </p>
               <p className="text-xl font-black text-amber-800 mt-1">
                 -{tlKetQuaHienTai.tongKgTruBi.toLocaleString("vi-VN")} kg
@@ -945,14 +946,18 @@ ${chiTietGhe.trim()}
             </div>
 
             <div className="bg-green-50 p-3 rounded-xl border border-green-200">
-              <p className="text-xs text-green-700 font-bold uppercase">Kg thực tính</p>
+              <p className="text-xs text-green-700 font-bold uppercase">
+                Kg thực tính
+              </p>
               <p className="text-xl font-black text-green-800 mt-1">
                 {tlKetQuaHienTai.tongKgThucTinh.toLocaleString("vi-VN")} kg
               </p>
             </div>
 
             <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
-              <p className="text-xs text-blue-700 font-bold uppercase">Tổng tiền lúa</p>
+              <p className="text-xs text-blue-700 font-bold uppercase">
+                Tổng tiền lúa
+              </p>
               <p className="text-xl font-black text-blue-800 mt-1">
                 {tlKetQuaHienTai.tongTienLua.toLocaleString("vi-VN")} đ
               </p>
@@ -976,7 +981,9 @@ ${chiTietGhe.trim()}
               </p>
               <p
                 className={`text-3xl font-black ${
-                  tlKetQuaHienTai.thanhTien >= 0 ? "text-green-700" : "text-amber-600"
+                  tlKetQuaHienTai.thanhTien >= 0
+                    ? "text-green-700"
+                    : "text-amber-600"
                 }`}
               >
                 {Math.abs(tlKetQuaHienTai.thanhTien).toLocaleString("vi-VN")} đ
