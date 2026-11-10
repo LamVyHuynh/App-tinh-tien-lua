@@ -71,7 +71,6 @@ function App() {
     return 1;
   });
 
-  const [thongBaoSaoChep, setThongBaoSaoChep] = useState(false);
   const inputRefs = useRef({});
 
   // Tự động lưu vào LocalStorage mỗi khi danh sách thương lái thay đổi
@@ -534,57 +533,6 @@ function App() {
     0
   );
 
-  // Tạo và sao chép phiếu tính tiền lúa gửi Zalo
-  const handleSaoChepPhieuZalo = () => {
-    const today = new Date().toLocaleDateString("vi-VN");
-    let chiTietGhe = "";
-    tlKetQuaHienTai.danhSachGhe.forEach((ghe) => {
-      chiTietGhe += `• ${ghe.tenGhe}: ${ghe.soBaoGhe} bao = ${ghe.tongKgGhe.toLocaleString("vi-VN")} kg\n`;
-    });
-
-    const donGiaNum = parseSoTien(tlKetQuaHienTai.donGia);
-    const tienCocNum = parseSoTien(tlKetQuaHienTai.tienCoc);
-
-    const noiDung = `🌾 PHIẾU TÍNH TIỀN LÚA 🌾
-📅 Ngày: ${today}
-👤 Thương lái: ${tlKetQuaHienTai.tenThuongLai}
-🚢 Số lượng ghe: ${tlKetQuaHienTai.danhSachGhe.length} ghe
-📦 Tổng số bao: ${tlKetQuaHienTai.tongSoBaoTatCaGhe} bao
--------------------------------
-⚖️ Tổng khối lượng cân: ${tlKetQuaHienTai.tongKgTatCaGhe.toLocaleString("vi-VN")} kg
-📦 Trừ bì (${parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) || 0} kg/bao x ${tlKetQuaHienTai.tongSoBaoTatCaGhe} bao): -${tlKetQuaHienTai.tongKgTruBi.toLocaleString("vi-VN")} kg
-🌾 Khối lượng thực tính: ${tlKetQuaHienTai.tongKgThucTinh.toLocaleString("vi-VN")} kg
-💰 Đơn giá: ${donGiaNum.toLocaleString("vi-VN")} đ/kg
-💵 Tổng tiền lúa: ${tlKetQuaHienTai.tongTienLua.toLocaleString("vi-VN")} đ
-💸 Tiền cọc trước: ${tienCocNum.toLocaleString("vi-VN")} đ
-👉 ${
-      tlKetQuaHienTai.thanhTien >= 0
-        ? `THƯƠNG LÁI CẦN TRẢ: ${tlKetQuaHienTai.thanhTien.toLocaleString("vi-VN")} đ`
-        : `DƯ CỌC (CẦN THỐI LẠI): ${Math.abs(tlKetQuaHienTai.thanhTien).toLocaleString("vi-VN")} đ`
-    }
--------------------------------
-🚢 Chi tiết từng ghe:
-${chiTietGhe.trim()}
--------------------------------
-(Tạo bởi App Tính Lúa Nhanh)`;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(noiDung).then(() => {
-        setThongBaoSaoChep(true);
-        setTimeout(() => setThongBaoSaoChep(false), 3000);
-      });
-    } else {
-      const textArea = document.createElement("textarea");
-      textArea.value = noiDung;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-      setThongBaoSaoChep(true);
-      setTimeout(() => setThongBaoSaoChep(false), 3000);
-    }
-  };
-
   const thuongLaiIndex = danhSachThuongLai.findIndex(
     (tl) => tl.id === thuongLaiDangChonId
   );
@@ -601,13 +549,6 @@ ${chiTietGhe.trim()}
             💾 Đã tự lưu
           </span>
         </div>
-
-        {/* THÔNG BÁO SAO CHÉP */}
-        {thongBaoSaoChep && (
-          <div className="bg-emerald-600 text-white p-2 rounded-xl text-center font-bold text-sm shadow-md animate-bounce">
-            ✅ Đã chép phiếu tính tiền! Hãy dán vào Zalo để gửi ngay.
-          </div>
-        )}
 
         {/* CHỌN THƯƠNG LÁI (GỌN NHẸ) */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 items-center">
@@ -923,14 +864,6 @@ ${chiTietGhe.trim()}
               </p>
             </div>
           </div>
-
-          {/* NÚT GỬI ZALO */}
-          <button
-            onClick={handleSaoChepPhieuZalo}
-            className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-extrabold text-sm md:text-base rounded-xl transition-all shadow flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            📋 Sao chép phiếu tính tiền (Gửi Zalo)
-          </button>
         </div>
 
         {/* TỔNG TẤT CẢ THƯƠNG LÁI (MINIMAL) */}
