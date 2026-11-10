@@ -1,8 +1,24 @@
 import { useState, useRef, useEffect } from "react";
 
+// Hàm định dạng số tiền có dấu chấm phân cách hàng nghìn (VD: 8500 -> 8.500)
+function formatTien(soStr) {
+  if (soStr === undefined || soStr === null || soStr === "") return "0";
+  const raw = String(soStr).replace(/\D/g, "");
+  if (!raw) return "0";
+  const clean = raw.replace(/^0+(?=\d)/, ""); // Bỏ các số 0 dư thừa ở đầu
+  return clean.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+// Chuyển chuỗi tiền có dấu chấm thành số thực tế để tính toán (VD: "8.500" -> 8500)
+function parseSoTien(val) {
+  if (!val) return 0;
+  const clean = String(val).replace(/\./g, "").replace(/,/g, ".");
+  return parseFloat(clean) || 0;
+}
+
 // Hàm đọc nhanh số tiền giúp bà con không bị nhầm lẫn số 0
-function docTienNhanh(soStr) {
-  const num = parseFloat(soStr);
+function docTienNhanh(soTien) {
+  const num = typeof soTien === "number" ? soTien : parseSoTien(soTien);
   if (isNaN(num) || num <= 0) return "";
   if (num >= 1_000_000_000) {
     const ty = (num / 1_000_000_000).toFixed(2).replace(/\.?0+$/, "");
@@ -27,10 +43,11 @@ function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Đảm bảo tương thích nếu dữ liệu cũ chưa có trường truBi
           return parsed.map((tl) => ({
             ...tl,
-            truBi: tl.truBi !== undefined ? tl.truBi : "0",
+            donGia: formatTien(tl.donGia ?? "0"),
+            tienCoc: formatTien(tl.tienCoc ?? "0"),
+            truBi: tl.truBi !== undefined && tl.truBi !== "" ? String(tl.truBi) : "0",
           }));
         }
       }
@@ -41,8 +58,8 @@ function App() {
       {
         id: 1,
         tenThuongLai: "Thương lái 1",
-        donGia: "",
-        tienCoc: "",
+        donGia: "0",
+        tienCoc: "0",
         truBi: "0", // Trừ bì (kg/bao)
         danhSachGhe: [
           {
@@ -100,9 +117,12 @@ function App() {
     danhSachThuongLai.find((tl) => tl.id === thuongLaiDangChonId) ||
     danhSachThuongLai[0];
 
-  // Cập nhật thông tin thương lái (đơn giá, tiền cọc, trừ bì, tên thương lái)
+  // Cập nhật thông tin thông thường (tên thương lái, trừ bì)
   const handleThongTinThuongLai = (truong) => (e) => {
-    const giaTri = e.target.value;
+    let giaTri = e.target.value;
+    if (truong === "truBi") {
+      giaTri = giaTri.replace(",", "."); // Hỗ trợ gõ dấu phẩy thành dấu chấm
+    }
     const danhSachMoi = danhSachThuongLai.map((tl) => {
       if (tl.id === thuongLaiDangChonId) {
         return { ...tl, [truong]: giaTri };
@@ -110,6 +130,36 @@ function App() {
       return tl;
     });
     setDanhSachThuongLai(danhSachMoi);
+  };
+
+  // Cập nhật tiền tệ tự động format dấu chấm (VD: 8500 -> 8.500)
+  const handleTienChange = (truong) => (e) => {
+    const raw = e.target.value.replace(/\D/g, "");
+    let formatted = "";
+    if (raw) {
+      const clean = raw.replace(/^0+(?=\d)/, ""); // Bỏ số 0 ở đầu nếu sau đó có số khác
+      formatted = clean.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+    const danhSachMoi = danhSachThuongLai.map((tl) => {
+      if (tl.id === thuongLaiDangChonId) {
+        return { ...tl, [truong]: formatted };
+      }
+      return tl;
+    });
+    setDanhSachThuongLai(danhSachMoi);
+  };
+
+  // Khi người dùng bấm ra ngoài ô tiền nếu trống thì tự về "0"
+  const handleTienBlur = (truong) => (e) => {
+    if (!e.target.value.trim()) {
+      const danhSachMoi = danhSachThuongLai.map((tl) => {
+        if (tl.id === thuongLaiDangChonId) {
+          return { ...tl, [truong]: "0" };
+        }
+        return tl;
+      });
+      setDanhSachThuongLai(danhSachMoi);
+    }
   };
 
   // Cập nhật tên ghe
@@ -287,7 +337,7 @@ function App() {
     }
   };
 
-  // Thêm thương lái mới
+  // Thêm thương lái mới (mặc định các ô tiền và trừ bì bằng "0")
   const handleThemThuongLai = () => {
     const idMoi =
       danhSachThuongLai.length > 0
@@ -296,8 +346,8 @@ function App() {
     const tlMoi = {
       id: idMoi,
       tenThuongLai: `Thương lái ${idMoi}`,
-      donGia: "",
-      tienCoc: "",
+      donGia: "0",
+      tienCoc: "0",
       truBi: "0",
       danhSachGhe: [
         {
@@ -333,7 +383,7 @@ function App() {
     setThuongLaiDangChonId(danhSachMoi[0].id);
   };
 
-  // Đặt lại dữ liệu thương lái hiện tại (CÓ HỎI XÁC NHẬN)
+  // Đặt lại dữ liệu thương lái hiện tại (Mặc định đơn giá, cọc, trừ bì về "0")
   const handleResetThuongLai = () => {
     if (
       !window.confirm(
@@ -346,8 +396,8 @@ function App() {
       if (tl.id === thuongLaiDangChonId) {
         return {
           ...tl,
-          donGia: "",
-          tienCoc: "",
+          donGia: "0",
+          tienCoc: "0",
           truBi: "0",
           danhSachGhe: [
             {
@@ -460,9 +510,9 @@ function App() {
       };
     });
 
-    const gia = parseFloat(tl.donGia) || 0;
-    const coc = parseFloat(tl.tienCoc) || 0;
-    const truBiMoiBao = parseFloat(tl.truBi) || 0;
+    const gia = parseSoTien(tl.donGia);
+    const coc = parseSoTien(tl.tienCoc);
+    const truBiMoiBao = parseFloat(String(tl.truBi).replace(",", ".")) || 0;
 
     // Tính trừ bì
     const tongKgTruBi =
@@ -504,6 +554,9 @@ function App() {
       chiTietGhe += `• ${ghe.tenGhe}: ${ghe.soBaoGhe} bao = ${ghe.tongKgGhe.toLocaleString("vi-VN")} kg\n`;
     });
 
+    const donGiaNum = parseSoTien(tlKetQuaHienTai.donGia);
+    const tienCocNum = parseSoTien(tlKetQuaHienTai.tienCoc);
+
     const noiDung = `🌾 PHIẾU TÍNH TIỀN LÚA 🌾
 📅 Ngày: ${today}
 👤 Thương lái: ${tlKetQuaHienTai.tenThuongLai}
@@ -511,11 +564,11 @@ function App() {
 📦 Tổng số bao: ${tlKetQuaHienTai.tongSoBaoTatCaGhe} bao
 -------------------------------
 ⚖️ Tổng khối lượng cân: ${tlKetQuaHienTai.tongKgTatCaGhe.toLocaleString("vi-VN")} kg
-📦 Trừ bì (${parseFloat(tlKetQuaHienTai.truBi) || 0} kg/bao x ${tlKetQuaHienTai.tongSoBaoTatCaGhe} bao): -${tlKetQuaHienTai.tongKgTruBi.toLocaleString("vi-VN")} kg
+📦 Trừ bì (${parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) || 0} kg/bao x ${tlKetQuaHienTai.tongSoBaoTatCaGhe} bao): -${tlKetQuaHienTai.tongKgTruBi.toLocaleString("vi-VN")} kg
 🌾 Khối lượng thực tính: ${tlKetQuaHienTai.tongKgThucTinh.toLocaleString("vi-VN")} kg
-💰 Đơn giá: ${(parseFloat(tlKetQuaHienTai.donGia) || 0).toLocaleString("vi-VN")} đ/kg
+💰 Đơn giá: ${donGiaNum.toLocaleString("vi-VN")} đ/kg
 💵 Tổng tiền lúa: ${tlKetQuaHienTai.tongTienLua.toLocaleString("vi-VN")} đ
-💸 Tiền cọc trước: ${(parseFloat(tlKetQuaHienTai.tienCoc) || 0).toLocaleString("vi-VN")} đ
+💸 Tiền cọc trước: ${tienCocNum.toLocaleString("vi-VN")} đ
 👉 ${
       tlKetQuaHienTai.thanhTien >= 0
         ? `THƯƠNG LÁI CẦN TRẢ: ${tlKetQuaHienTai.thanhTien.toLocaleString("vi-VN")} đ`
@@ -631,7 +684,7 @@ ${chiTietGhe.trim()}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* ĐƠN GIÁ */}
+            {/* ĐƠN GIÁ - TỰ ĐỘNG FORMAT HÀNG NGHÌN */}
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-gray-700 font-bold text-sm">
@@ -643,10 +696,12 @@ ${chiTietGhe.trim()}
               </div>
               <input
                 type="text"
-                inputMode="decimal"
+                inputMode="numeric"
                 value={tlKetQuaHienTai.donGia}
-                onChange={handleThongTinThuongLai("donGia")}
-                placeholder="VD: 8500"
+                onFocus={(e) => e.target.select()}
+                onChange={handleTienChange("donGia")}
+                onBlur={handleTienBlur("donGia")}
+                placeholder="0"
                 className="w-full p-3 border-2 border-gray-300 rounded-xl text-xl font-bold focus:border-green-500 focus:outline-none bg-white"
               />
             </div>
@@ -658,7 +713,7 @@ ${chiTietGhe.trim()}
                   Trừ bì (kg/bao):
                 </label>
                 <span className="text-xs font-semibold text-amber-700">
-                  {parseFloat(tlKetQuaHienTai.truBi) > 0
+                  {parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) > 0
                     ? `Trừ ${tlKetQuaHienTai.truBi} kg/bao`
                     : "Không trừ bì"}
                 </span>
@@ -667,13 +722,25 @@ ${chiTietGhe.trim()}
                 type="text"
                 inputMode="decimal"
                 value={tlKetQuaHienTai.truBi}
+                onFocus={(e) => e.target.select()}
                 onChange={handleThongTinThuongLai("truBi")}
-                placeholder="VD: 0.5 hoặc 1"
+                onBlur={(e) => {
+                  if (!e.target.value.trim()) {
+                    const danhSachMoi = danhSachThuongLai.map((tl) => {
+                      if (tl.id === thuongLaiDangChonId) {
+                        return { ...tl, truBi: "0" };
+                      }
+                      return tl;
+                    });
+                    setDanhSachThuongLai(danhSachMoi);
+                  }
+                }}
+                placeholder="0"
                 className="w-full p-3 border-2 border-amber-200 bg-amber-50/50 rounded-xl text-xl font-bold focus:border-amber-500 focus:outline-none"
               />
             </div>
 
-            {/* TIỀN CỌC TRƯỚC */}
+            {/* TIỀN CỌC TRƯỚC - TỰ ĐỘNG FORMAT HÀNG NGHÌN */}
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-blue-700 font-bold text-sm">
@@ -685,10 +752,12 @@ ${chiTietGhe.trim()}
               </div>
               <input
                 type="text"
-                inputMode="decimal"
+                inputMode="numeric"
                 value={tlKetQuaHienTai.tienCoc}
-                onChange={handleThongTinThuongLai("tienCoc")}
-                placeholder="VD: 5000000"
+                onFocus={(e) => e.target.select()}
+                onChange={handleTienChange("tienCoc")}
+                onBlur={handleTienBlur("tienCoc")}
+                placeholder="0"
                 className="w-full p-3 border-2 border-blue-200 bg-blue-50/50 rounded-xl text-xl font-bold focus:border-blue-500 focus:outline-none"
               />
             </div>
@@ -868,7 +937,7 @@ ${chiTietGhe.trim()}
 
             <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
               <p className="text-xs text-amber-700 font-bold uppercase">
-                Trừ bì ({parseFloat(tlKetQuaHienTai.truBi) || 0} kg/bao)
+                Trừ bì ({parseFloat(String(tlKetQuaHienTai.truBi).replace(",", ".")) || 0} kg/bao)
               </p>
               <p className="text-xl font-black text-amber-800 mt-1">
                 -{tlKetQuaHienTai.tongKgTruBi.toLocaleString("vi-VN")} kg
@@ -896,7 +965,7 @@ ${chiTietGhe.trim()}
                 Đã đặt cọc trước:
               </p>
               <p className="text-lg font-bold text-gray-700">
-                {(parseFloat(tlKetQuaHienTai.tienCoc) || 0).toLocaleString("vi-VN")} đ
+                {parseSoTien(tlKetQuaHienTai.tienCoc).toLocaleString("vi-VN")} đ
               </p>
             </div>
             <div className="text-center sm:text-right">
