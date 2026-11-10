@@ -1,32 +1,106 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+
+// Hàm đọc nhanh số tiền giúp bà con không bị nhầm lẫn số 0
+function docTienNhanh(soStr) {
+  const num = parseFloat(soStr);
+  if (isNaN(num) || num <= 0) return "";
+  if (num >= 1_000_000_000) {
+    const ty = (num / 1_000_000_000).toFixed(2).replace(/\.?0+$/, "");
+    return `(~${ty} tỷ đồng)`;
+  }
+  if (num >= 1_000_000) {
+    const trieu = (num / 1_000_000).toFixed(2).replace(/\.?0+$/, "");
+    return `(~${trieu} triệu đồng)`;
+  }
+  if (num >= 1_000) {
+    const ngan = (num / 1_000).toFixed(1).replace(/\.?0+$/, "");
+    return `(~${ngan} ngàn đồng)`;
+  }
+  return `(${num.toLocaleString("vi-VN")} đ)`;
+}
 
 function App() {
-  const [danhSachThuongLai, setDanhSachThuongLai] = useState([
-    {
-      id: 1,
-      tenThuongLai: "Thương lái 1",
-      donGia: "",
-      tienCoc: "",
-      danhSachGhe: [
-        {
-          id: 1,
-          tenGhe: "Ghe số 1",
-          bangKg: Array(5)
-            .fill()
-            .map(() => Array(5).fill("")),
-        },
-      ],
-    },
-  ]);
+  // 1. Khởi tạo dữ liệu từ LocalStorage để không bao giờ bị mất khi tải lại trang / tắt app
+  const [danhSachThuongLai, setDanhSachThuongLai] = useState(() => {
+    try {
+      const saved = localStorage.getItem("tinh_lua_danh_sach");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Đảm bảo tương thích nếu dữ liệu cũ chưa có trường truBi
+          return parsed.map((tl) => ({
+            ...tl,
+            truBi: tl.truBi !== undefined ? tl.truBi : "0",
+          }));
+        }
+      }
+    } catch (e) {
+      console.error("Lỗi đọc dữ liệu từ localStorage:", e);
+    }
+    return [
+      {
+        id: 1,
+        tenThuongLai: "Thương lái 1",
+        donGia: "",
+        tienCoc: "",
+        truBi: "0", // Trừ bì (kg/bao)
+        danhSachGhe: [
+          {
+            id: 1,
+            tenGhe: "Ghe số 1",
+            bangKg: Array(5)
+              .fill()
+              .map(() => Array(5).fill("")),
+          },
+        ],
+      },
+    ];
+  });
 
-  const [thuongLaiDangChonId, setThuongLaiDangChonId] = useState(1);
+  const [thuongLaiDangChonId, setThuongLaiDangChonId] = useState(() => {
+    try {
+      const savedId = localStorage.getItem("tinh_lua_id_chon");
+      if (savedId) {
+        return JSON.parse(savedId);
+      }
+    } catch {
+      // Bỏ qua nếu chưa có dữ liệu lưu
+    }
+    return 1;
+  });
+
+  const [thongBaoSaoChep, setThongBaoSaoChep] = useState(false);
   const inputRefs = useRef({});
+
+  // Tự động lưu vào LocalStorage mỗi khi danh sách thương lái thay đổi
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "tinh_lua_danh_sach",
+        JSON.stringify(danhSachThuongLai)
+      );
+    } catch (e) {
+      console.error("Lỗi lưu localStorage:", e);
+    }
+  }, [danhSachThuongLai]);
+
+  // Tự động lưu thương lái đang chọn
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "tinh_lua_id_chon",
+        JSON.stringify(thuongLaiDangChonId)
+      );
+    } catch {
+      // Bỏ qua nếu chưa có dữ liệu lưu
+    }
+  }, [thuongLaiDangChonId]);
 
   const thuongLaiHienTai =
     danhSachThuongLai.find((tl) => tl.id === thuongLaiDangChonId) ||
     danhSachThuongLai[0];
 
-  // 1. Cập nhật đơn giá hoặc tiền cọc
+  // Cập nhật thông tin thương lái (đơn giá, tiền cọc, trừ bì, tên thương lái)
   const handleThongTinThuongLai = (truong) => (e) => {
     const giaTri = e.target.value;
     const danhSachMoi = danhSachThuongLai.map((tl) => {
@@ -38,7 +112,24 @@ function App() {
     setDanhSachThuongLai(danhSachMoi);
   };
 
-  // Hàm chuyển ô tiếp theo tự động và sinh ghe nếu hết bảng
+  // Cập nhật tên ghe
+  const handleDoiTenGhe = (gheId, tenMoi) => {
+    const danhSachMoi = danhSachThuongLai.map((tl) => {
+      if (tl.id === thuongLaiDangChonId) {
+        const danhSachGheMoi = tl.danhSachGhe.map((ghe) => {
+          if (ghe.id === gheId) {
+            return { ...ghe, tenGhe: tenMoi };
+          }
+          return ghe;
+        });
+        return { ...tl, danhSachGhe: danhSachGheMoi };
+      }
+      return tl;
+    });
+    setDanhSachThuongLai(danhSachMoi);
+  };
+
+  // Hàm chuyển ô tiếp theo tự động và sinh ghe nếu hết bảng 25 bao
   const chuyenOtiepTheo = (gheIndex, hangIndex, cotIndex) => {
     let hangMoi = hangIndex + 1;
     let cotMoi = cotIndex;
@@ -81,29 +172,58 @@ function App() {
           setDanhSachThuongLai(danhSachMoi);
 
           setTimeout(() => {
-            if (
+            const el =
               inputRefs.current[gheIdxMoi] &&
               inputRefs.current[gheIdxMoi][0] &&
-              inputRefs.current[gheIdxMoi][0][0]
-            ) {
-              inputRefs.current[gheIdxMoi][0][0].focus();
+              inputRefs.current[gheIdxMoi][0][0];
+            if (el) {
+              el.focus();
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
             }
-          }, 50);
+          }, 80);
           return;
         }
       }
     }
 
-    if (
+    const targetInput =
       inputRefs.current[gheIdxMoi] &&
       inputRefs.current[gheIdxMoi][hangMoi] &&
-      inputRefs.current[gheIdxMoi][hangMoi][cotMoi]
-    ) {
-      inputRefs.current[gheIdxMoi][hangMoi][cotMoi].focus();
+      inputRefs.current[gheIdxMoi][hangMoi][cotMoi];
+
+    if (targetInput) {
+      targetInput.focus();
+      targetInput.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   };
 
-  // 2. Cập nhật số kg: Nếu nhập 3 chữ số (VD: 124) tự động biến thành 12.4 và nhảy ô. Hoặc nhập đúng chuẩn XX.X cũng nhảy ô.
+  // Hàm lùi về ô trước đó (khi bấm phím Backspace tại ô trống hoặc mũi tên lên)
+  const luiVeOtruocDo = (gheIndex, hangIndex, cotIndex) => {
+    let hangTruoc = hangIndex - 1;
+    let cotTruoc = cotIndex;
+    let gheIdxTruoc = gheIndex;
+
+    if (hangTruoc < 0) {
+      hangTruoc = 4;
+      cotTruoc = cotIndex - 1;
+      if (cotTruoc < 0) {
+        cotTruoc = 4;
+        gheIdxTruoc = Math.max(0, gheIndex - 1);
+      }
+    }
+
+    const targetInput =
+      inputRefs.current[gheIdxTruoc] &&
+      inputRefs.current[gheIdxTruoc][hangTruoc] &&
+      inputRefs.current[gheIdxTruoc][hangTruoc][cotTruoc];
+
+    if (targetInput) {
+      targetInput.focus();
+      targetInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  // Nhập số kg: Gõ 3 số (vd: 524 -> 52.4) hoặc nhập đúng chuẩn XX.X tự động nhảy ô
   const handleInputChange = (gheId, gheIndex, hangIndex, cotIndex, e) => {
     let giaTri = e.target.value;
     giaTri = giaTri.replace(",", "."); // Hỗ trợ đổi dấu phẩy thành dấu chấm
@@ -111,7 +231,7 @@ function App() {
     let giaTriCanLuu = giaTri;
     let coTheChuyenO = false;
 
-    // Trường hợp 1: Nhập 3 chữ số liền mạch (VD: "124") -> Tự động thành "12.4"
+    // Trường hợp 1: Nhập 3 chữ số liền mạch (VD: "524") -> Tự động thành "52.4"
     if (/^\d{3}$/.test(giaTri)) {
       giaTriCanLuu = giaTri.slice(0, 2) + "." + giaTri.slice(2);
       coTheChuyenO = true;
@@ -130,7 +250,7 @@ function App() {
                 if (hIdx === hangIndex && cIdx === cotIndex)
                   return giaTriCanLuu;
                 return col;
-              }),
+              })
             );
             return { ...ghe, bangKg: bangMoi };
           }
@@ -142,7 +262,6 @@ function App() {
     });
     setDanhSachThuongLai(danhSachMoi);
 
-    // Nếu đã thỏa mãn điều kiện tự động chuyển ô
     if (coTheChuyenO) {
       setTimeout(() => {
         chuyenOtiepTheo(gheIndex, hangIndex, cotIndex);
@@ -150,37 +269,25 @@ function App() {
     }
   };
 
-  // Xử lý phím Enter thủ công hoặc phím điều hướng
+  // Bắt phím điều hướng và phím xóa lùi Backspace
   const handleKeyDown = (gheIndex, hangIndex, cotIndex, e) => {
     if (e.key === "Enter" || e.keyCode === 13) {
       e.preventDefault();
       chuyenOtiepTheo(gheIndex, hangIndex, cotIndex);
+    } else if (e.key === "Backspace" && e.target.value === "") {
+      // Khi ô rỗng bấm Backspace -> tự động lùi về ô trước
+      e.preventDefault();
+      luiVeOtruocDo(gheIndex, hangIndex, cotIndex);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      let hangMoi = hangIndex - 1;
-      let cotMoi = cotIndex;
-      let gheIdxMoi = gheIndex;
-
-      if (hangMoi < 0) {
-        hangMoi = 4;
-        cotMoi = cotIndex - 1;
-        if (cotMoi < 0) {
-          cotMoi = 4;
-          gheIdxMoi = Math.max(0, gheIndex - 1);
-        }
-      }
-
-      if (
-        inputRefs.current[gheIdxMoi] &&
-        inputRefs.current[gheIdxMoi][hangMoi] &&
-        inputRefs.current[gheIdxMoi][hangMoi][cotMoi]
-      ) {
-        inputRefs.current[gheIdxMoi][hangMoi][cotMoi].focus();
-      }
+      luiVeOtruocDo(gheIndex, hangIndex, cotIndex);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      chuyenOtiepTheo(gheIndex, hangIndex, cotIndex);
     }
   };
 
-  // 4. Thêm thương lái mới
+  // Thêm thương lái mới
   const handleThemThuongLai = () => {
     const idMoi =
       danhSachThuongLai.length > 0
@@ -191,6 +298,7 @@ function App() {
       tenThuongLai: `Thương lái ${idMoi}`,
       donGia: "",
       tienCoc: "",
+      truBi: "0",
       danhSachGhe: [
         {
           id: 1,
@@ -205,10 +313,19 @@ function App() {
     setThuongLaiDangChonId(idMoi);
   };
 
-  // 5. Xóa thương lái
+  // Xóa thương lái (CÓ HỎI XÁC NHẬN)
   const handleXoaThuongLai = (id) => {
     if (danhSachThuongLai.length === 1) {
       alert("Cần giữ lại ít nhất một thương lái!");
+      return;
+    }
+    const tlXoa = danhSachThuongLai.find((tl) => tl.id === id);
+    const ten = tlXoa ? tlXoa.tenThuongLai : "thương lái này";
+    if (
+      !window.confirm(
+        `⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa "${ten}" không?\nToàn bộ số liệu cân của thương lái này sẽ bị xóa hoàn toàn!`
+      )
+    ) {
       return;
     }
     const danhSachMoi = danhSachThuongLai.filter((tl) => tl.id !== id);
@@ -216,14 +333,22 @@ function App() {
     setThuongLaiDangChonId(danhSachMoi[0].id);
   };
 
-  // 6. Đặt lại (Xóa trắng dữ liệu thương lái hiện tại)
+  // Đặt lại dữ liệu thương lái hiện tại (CÓ HỎI XÁC NHẬN)
   const handleResetThuongLai = () => {
+    if (
+      !window.confirm(
+        `⚠️ CẢNH BÁO: Bạn có chắc muốn ĐẶT LẠI từ đầu cho "${thuongLaiHienTai.tenThuongLai}"?\nToàn bộ số kg đã nhập sẽ bị xóa trắng về 0!`
+      )
+    ) {
+      return;
+    }
     const danhSachMoi = danhSachThuongLai.map((tl) => {
       if (tl.id === thuongLaiDangChonId) {
         return {
           ...tl,
           donGia: "",
           tienCoc: "",
+          truBi: "0",
           danhSachGhe: [
             {
               id: 1,
@@ -240,7 +365,7 @@ function App() {
     setDanhSachThuongLai(danhSachMoi);
   };
 
-  // 7. Thêm ghe thủ công
+  // Thêm ghe thủ công
   const handleThemGheThuCong = () => {
     const danhSachMoi = danhSachThuongLai.map((tl) => {
       if (tl.id === thuongLaiDangChonId) {
@@ -262,14 +387,23 @@ function App() {
     setDanhSachThuongLai(danhSachMoi);
   };
 
-  // 8. Xóa ghe
+  // Xóa ghe (CÓ HỎI XÁC NHẬN)
   const handleXoaGhe = (gheId) => {
+    if (thuongLaiHienTai.danhSachGhe.length === 1) {
+      alert("Mỗi thương lái cần giữ lại ít nhất một ghe cân!");
+      return;
+    }
+    const gheXoa = thuongLaiHienTai.danhSachGhe.find((g) => g.id === gheId);
+    const tenGhe = gheXoa ? gheXoa.tenGhe : "ghe này";
+    if (
+      !window.confirm(
+        `⚠️ Bạn có chắc chắn muốn xóa "${tenGhe}" không?\nToàn bộ số kg trong ghe này sẽ bị xóa!`
+      )
+    ) {
+      return;
+    }
     const danhSachMoi = danhSachThuongLai.map((tl) => {
       if (tl.id === thuongLaiDangChonId) {
-        if (tl.danhSachGhe.length === 1) {
-          alert("Mỗi thương lái cần giữ lại ít nhất một ghe cân!");
-          return tl;
-        }
         return {
           ...tl,
           danhSachGhe: tl.danhSachGhe.filter((g) => g.id !== gheId),
@@ -280,14 +414,16 @@ function App() {
     setDanhSachThuongLai(danhSachMoi);
   };
 
-  // Tính toán số liệu chuẩn xác
+  // Tính toán số liệu chuẩn xác (bao gồm Trừ bì, Tổng kg thực tính, Tổng tiền)
   const ketQuaThuongLai = danhSachThuongLai.map((tl) => {
     let tongKgTatCaGhe = 0;
+    let tongSoBaoTatCaGhe = 0;
+
     const danhSachGheTinhToan = tl.danhSachGhe.map((ghe) => {
       const tongKgGhe = ghe.bangKg.reduce((tongSo, hang) => {
         const tongHang = hang.reduce(
           (sum, val) => sum + (parseFloat(val) || 0),
-          0,
+          0
         );
         return tongSo + tongHang;
       }, 0);
@@ -296,18 +432,57 @@ function App() {
         return acc + hang.filter((val) => val !== "" && !isNaN(val)).length;
       }, 0);
 
+      // Tính tổng theo từng cột (5 cột)
+      const tongTungCot = [0, 1, 2, 3, 4].map((cIdx) => {
+        let kgCot = 0;
+        let baoCot = 0;
+        for (let hIdx = 0; hIdx < 5; hIdx++) {
+          const val = ghe.bangKg[hIdx][cIdx];
+          if (val !== "" && !isNaN(val)) {
+            kgCot += parseFloat(val) || 0;
+            baoCot += 1;
+          }
+        }
+        return {
+          kg: Math.round(kgCot * 100) / 100,
+          soBao: baoCot,
+        };
+      });
+
       tongKgTatCaGhe += tongKgGhe;
-      return { ...ghe, tongKgGhe: Math.round(tongKgGhe * 100) / 100, soBaoGhe };
+      tongSoBaoTatCaGhe += soBaoGhe;
+
+      return {
+        ...ghe,
+        tongKgGhe: Math.round(tongKgGhe * 100) / 100,
+        soBaoGhe,
+        tongTungCot,
+      };
     });
 
     const gia = parseFloat(tl.donGia) || 0;
     const coc = parseFloat(tl.tienCoc) || 0;
-    const thanhTien = Math.max(0, tongKgTatCaGhe * gia - coc);
+    const truBiMoiBao = parseFloat(tl.truBi) || 0;
+
+    // Tính trừ bì
+    const tongKgTruBi =
+      Math.round(tongSoBaoTatCaGhe * truBiMoiBao * 100) / 100;
+    const tongKgThucTinh = Math.max(
+      0,
+      Math.round((tongKgTatCaGhe - tongKgTruBi) * 100) / 100
+    );
+
+    const tongTienLua = Math.round(tongKgThucTinh * gia);
+    const thanhTien = tongTienLua - coc;
 
     return {
       ...tl,
       danhSachGhe: danhSachGheTinhToan,
       tongKgTatCaGhe: Math.round(tongKgTatCaGhe * 100) / 100,
+      tongSoBaoTatCaGhe,
+      tongKgTruBi,
+      tongKgThucTinh,
+      tongTienLua,
       thanhTien,
     };
   });
@@ -317,19 +492,79 @@ function App() {
     ketQuaThuongLai[0];
 
   const tongTienTatCaThuongLai = ketQuaThuongLai.reduce(
-    (sum, tl) => sum + tl.thanhTien,
-    0,
+    (sum, tl) => sum + Math.max(0, tl.thanhTien),
+    0
   );
 
+  // Tạo và sao chép phiếu tính tiền lúa gửi Zalo
+  const handleSaoChepPhieuZalo = () => {
+    const today = new Date().toLocaleDateString("vi-VN");
+    let chiTietGhe = "";
+    tlKetQuaHienTai.danhSachGhe.forEach((ghe) => {
+      chiTietGhe += `• ${ghe.tenGhe}: ${ghe.soBaoGhe} bao = ${ghe.tongKgGhe.toLocaleString("vi-VN")} kg\n`;
+    });
+
+    const noiDung = `🌾 PHIẾU TÍNH TIỀN LÚA 🌾
+📅 Ngày: ${today}
+👤 Thương lái: ${tlKetQuaHienTai.tenThuongLai}
+🚢 Số lượng ghe: ${tlKetQuaHienTai.danhSachGhe.length} ghe
+📦 Tổng số bao: ${tlKetQuaHienTai.tongSoBaoTatCaGhe} bao
+-------------------------------
+⚖️ Tổng khối lượng cân: ${tlKetQuaHienTai.tongKgTatCaGhe.toLocaleString("vi-VN")} kg
+📦 Trừ bì (${parseFloat(tlKetQuaHienTai.truBi) || 0} kg/bao x ${tlKetQuaHienTai.tongSoBaoTatCaGhe} bao): -${tlKetQuaHienTai.tongKgTruBi.toLocaleString("vi-VN")} kg
+🌾 Khối lượng thực tính: ${tlKetQuaHienTai.tongKgThucTinh.toLocaleString("vi-VN")} kg
+💰 Đơn giá: ${(parseFloat(tlKetQuaHienTai.donGia) || 0).toLocaleString("vi-VN")} đ/kg
+💵 Tổng tiền lúa: ${tlKetQuaHienTai.tongTienLua.toLocaleString("vi-VN")} đ
+💸 Tiền cọc trước: ${(parseFloat(tlKetQuaHienTai.tienCoc) || 0).toLocaleString("vi-VN")} đ
+👉 ${
+      tlKetQuaHienTai.thanhTien >= 0
+        ? `THƯƠNG LÁI CẦN TRẢ: ${tlKetQuaHienTai.thanhTien.toLocaleString("vi-VN")} đ`
+        : `DƯ CỌC (CẦN THỐI LẠI): ${Math.abs(tlKetQuaHienTai.thanhTien).toLocaleString("vi-VN")} đ`
+    }
+-------------------------------
+🚢 Chi tiết từng ghe:
+${chiTietGhe.trim()}
+-------------------------------
+(Tạo bởi App Tính Lúa Nhanh)`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(noiDung).then(() => {
+        setThongBaoSaoChep(true);
+        setTimeout(() => setThongBaoSaoChep(false), 3000);
+      });
+    } else {
+      // Dự phòng nếu trình duyệt không hỗ trợ clipboard API
+      const textArea = document.createElement("textarea");
+      textArea.value = noiDung;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setThongBaoSaoChep(true);
+      setTimeout(() => setThongBaoSaoChep(false), 3000);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 p-3 md:p-6 font-sans">
+    <div className="min-h-screen bg-gray-100 p-3 md:p-6 font-sans pb-16">
       <div className="max-w-3xl mx-auto space-y-5">
         {/* TIÊU ĐỀ */}
-        <div className="bg-green-600 p-4 text-center rounded-2xl shadow-lg">
+        <div className="bg-green-600 p-4 text-center rounded-2xl shadow-lg flex items-center justify-between">
+          <div className="w-8"></div>
           <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-wide">
-            TÍNH TIỀN LÚA NHANH
+            🌾 TÍNH TIỀN LÚA NHANH
           </h1>
+          <div className="text-white text-xs bg-green-700 px-2.5 py-1 rounded-full font-semibold">
+            💾 Đã tự lưu
+          </div>
         </div>
+
+        {/* THÔNG BÁO SAO CHÉP THÀNH CÔNG */}
+        {thongBaoSaoChep && (
+          <div className="bg-emerald-500 text-white p-3 rounded-xl text-center font-bold shadow-lg flex items-center justify-center gap-2 animate-bounce">
+            <span>✅ Đã sao chép phiếu tính tiền! Hãy dán vào Zalo để gửi ngay.</span>
+          </div>
+        )}
 
         {/* PHẦN 1: CHỌN THƯƠNG LÁI */}
         <div className="bg-white p-4 rounded-2xl shadow-md border border-gray-200 space-y-3">
@@ -362,12 +597,21 @@ function App() {
           </div>
         </div>
 
-        {/* PHẦN 2: CẤU HÌNH THƯƠNG LÁI ĐANG CHỌN */}
+        {/* PHẦN 2: CẤU HÌNH THƯƠNG LÁI ĐANG CHỌN (ĐỔI TÊN, ĐƠN GIÁ, CỌC, TRỪ BÌ) */}
         <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-200 space-y-4">
           <div className="flex justify-between items-center border-b pb-3 flex-wrap gap-2">
-            <h2 className="text-xl font-black text-green-700 uppercase">
-              👤 Đang xem: {tlKetQuaHienTai.tenThuongLai}
-            </h2>
+            <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+              <span className="text-xl">👤</span>
+              <input
+                type="text"
+                value={tlKetQuaHienTai.tenThuongLai}
+                onChange={handleThongTinThuongLai("tenThuongLai")}
+                placeholder="Nhập tên thương lái..."
+                title="Bấm vào để đổi tên thương lái"
+                className="text-xl font-black text-green-700 uppercase bg-green-50/50 hover:bg-green-50 border-b-2 border-dashed border-green-500 focus:border-green-700 focus:bg-white focus:outline-none px-2 py-1 rounded w-full max-w-sm transition-all"
+              />
+              <span className="text-xs text-gray-400 whitespace-nowrap">(Chạm để đổi tên)</span>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={handleResetThuongLai}
@@ -386,11 +630,17 @@ function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* ĐƠN GIÁ */}
             <div>
-              <label className="block text-gray-700 font-bold mb-1 text-sm">
-                Đơn giá (đồng/kg):
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-gray-700 font-bold text-sm">
+                  Đơn giá (đồng/kg):
+                </label>
+                <span className="text-xs font-semibold text-green-700">
+                  {docTienNhanh(tlKetQuaHienTai.donGia)}
+                </span>
+              </div>
               <input
                 type="text"
                 inputMode="decimal"
@@ -401,17 +651,45 @@ function App() {
               />
             </div>
 
+            {/* TRỪ BÌ (KG/BAO) */}
             <div>
-              <label className="block text-blue-700 font-bold mb-1 text-sm">
-                Tiền cọc trước (VNĐ):
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-amber-700 font-bold text-sm">
+                  Trừ bì (kg/bao):
+                </label>
+                <span className="text-xs font-semibold text-amber-700">
+                  {parseFloat(tlKetQuaHienTai.truBi) > 0
+                    ? `Trừ ${tlKetQuaHienTai.truBi} kg/bao`
+                    : "Không trừ bì"}
+                </span>
+              </div>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={tlKetQuaHienTai.truBi}
+                onChange={handleThongTinThuongLai("truBi")}
+                placeholder="VD: 0.5 hoặc 1"
+                className="w-full p-3 border-2 border-amber-200 bg-amber-50/50 rounded-xl text-xl font-bold focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+
+            {/* TIỀN CỌC TRƯỚC */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-blue-700 font-bold text-sm">
+                  Tiền cọc trước (VNĐ):
+                </label>
+                <span className="text-xs font-semibold text-blue-700">
+                  {docTienNhanh(tlKetQuaHienTai.tienCoc)}
+                </span>
+              </div>
               <input
                 type="text"
                 inputMode="decimal"
                 value={tlKetQuaHienTai.tienCoc}
                 onChange={handleThongTinThuongLai("tienCoc")}
                 placeholder="VD: 5000000"
-                className="w-full p-3 border-2 border-blue-200 bg-blue-50 rounded-xl text-xl font-bold focus:border-blue-500 focus:outline-none"
+                className="w-full p-3 border-2 border-blue-200 bg-blue-50/50 rounded-xl text-xl font-bold focus:border-blue-500 focus:outline-none"
               />
             </div>
           </div>
@@ -423,10 +701,19 @@ function App() {
             key={ghe.id}
             className="bg-white rounded-2xl shadow-md border border-gray-200 p-3 md:p-5 space-y-3"
           >
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-lg font-black text-gray-800 uppercase">
-                🚢 {ghe.tenGhe}
-              </h3>
+            <div className="flex justify-between items-center border-b pb-2 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🚢</span>
+                <input
+                  type="text"
+                  value={ghe.tenGhe}
+                  onChange={(e) => handleDoiTenGhe(ghe.id, e.target.value)}
+                  placeholder="Tên ghe..."
+                  title="Chạm vào để sửa tên ghe"
+                  className="text-lg font-black text-gray-800 uppercase bg-gray-50/60 hover:bg-gray-100 border-b border-dashed border-gray-400 focus:border-green-600 focus:bg-white focus:outline-none px-2 py-0.5 rounded transition-all max-w-[200px]"
+                />
+                <span className="text-xs text-gray-400">(Chạm đổi tên)</span>
+              </div>
               {tlKetQuaHienTai.danhSachGhe.length > 1 && (
                 <button
                   onClick={() => handleXoaGhe(ghe.id)}
@@ -440,7 +727,7 @@ function App() {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="font-bold text-gray-600 text-sm">
-                  Nhập số Kg lúa:
+                  Nhập số Kg lúa (nhập dọc theo cột):
                 </span>
                 <span className="text-xs font-semibold bg-green-100 text-green-800 px-2.5 py-1 rounded-full">
                   Đã nhập: {ghe.soBaoGhe} / 25 bao
@@ -492,13 +779,22 @@ function App() {
                                 ] = el;
                               }}
                               value={colVal}
+                              onFocus={(e) => {
+                                e.target.select();
+                                setTimeout(() => {
+                                  e.target.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "center",
+                                  });
+                                }, 80);
+                              }}
                               onChange={(e) =>
                                 handleInputChange(
                                   ghe.id,
                                   gheIndex,
                                   hangIndex,
                                   cotIndex,
-                                  e,
+                                  e
                                 )
                               }
                               onKeyDown={(e) =>
@@ -512,14 +808,32 @@ function App() {
                       </tr>
                     ))}
                   </tbody>
+                  {/* TỔNG KẾT TỪNG CỘT (SUBTOTAL) */}
+                  <tfoot>
+                    <tr className="bg-green-50 font-bold border-t-2 border-green-300">
+                      {ghe.tongTungCot.map((colTotal, cIdx) => (
+                        <td
+                          key={cIdx}
+                          className="p-1 text-center border border-green-200"
+                        >
+                          <div className="text-green-900 font-extrabold text-sm md:text-base">
+                            {colTotal.kg > 0 ? `${colTotal.kg}` : "0"}
+                          </div>
+                          <div className="text-[10px] text-gray-500 font-semibold">
+                            {colTotal.soBao} bao
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
 
             <div className="bg-gray-50 border border-gray-200 p-3 rounded-xl flex justify-between items-center font-bold text-gray-700 text-sm">
-              <span>Khối lượng ghe này:</span>
+              <span>Khối lượng ghe này ({ghe.soBaoGhe} bao):</span>
               <span className="text-green-800 text-lg font-black">
-                {ghe.tongKgGhe} kg
+                {ghe.tongKgGhe.toLocaleString("vi-VN")} kg
               </span>
             </div>
           </div>
@@ -533,22 +847,81 @@ function App() {
           ➕ Thêm Ghe Mới Cho Thương Lái Này
         </button>
 
-        {/* TỔNG KẾT TIỀN CỦA THƯƠNG LÁI NÀY */}
-        <div className="bg-green-50 border-2 border-green-300 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3">
-          <div>
-            <p className="text-gray-600 font-bold text-sm">Tổng khối lượng:</p>
-            <p className="text-2xl font-black text-green-800">
-              {tlKetQuaHienTai.tongKgTatCaGhe} kg
-            </p>
+        {/* BẢNG TỔNG KẾT TIỀN CỦA THƯƠNG LÁI NÀY (CÓ TRỪ BÌ) */}
+        <div className="bg-white border-2 border-green-400 p-5 rounded-2xl shadow-md space-y-4">
+          <div className="border-b pb-2 flex justify-between items-center">
+            <h3 className="font-black text-gray-800 uppercase text-base">
+              📊 Tổng kết: {tlKetQuaHienTai.tenThuongLai}
+            </h3>
+            <span className="text-sm font-bold bg-green-100 text-green-800 px-3 py-1 rounded-full">
+              {tlKetQuaHienTai.tongSoBaoTatCaGhe} bao lúa
+            </span>
           </div>
-          <div className="text-center sm:text-right">
-            <p className="text-gray-600 font-bold text-sm">
-              Thương lái cần trả:
-            </p>
-            <p className="text-3xl font-black text-green-700">
-              {tlKetQuaHienTai.thanhTien.toLocaleString("vi-VN")} đ
-            </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+            <div className="bg-gray-50 p-3 rounded-xl">
+              <p className="text-xs text-gray-500 font-bold uppercase">Tổng kg cân</p>
+              <p className="text-xl font-black text-gray-800 mt-1">
+                {tlKetQuaHienTai.tongKgTatCaGhe.toLocaleString("vi-VN")} kg
+              </p>
+            </div>
+
+            <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
+              <p className="text-xs text-amber-700 font-bold uppercase">
+                Trừ bì ({parseFloat(tlKetQuaHienTai.truBi) || 0} kg/bao)
+              </p>
+              <p className="text-xl font-black text-amber-800 mt-1">
+                -{tlKetQuaHienTai.tongKgTruBi.toLocaleString("vi-VN")} kg
+              </p>
+            </div>
+
+            <div className="bg-green-50 p-3 rounded-xl border border-green-200">
+              <p className="text-xs text-green-700 font-bold uppercase">Kg thực tính</p>
+              <p className="text-xl font-black text-green-800 mt-1">
+                {tlKetQuaHienTai.tongKgThucTinh.toLocaleString("vi-VN")} kg
+              </p>
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
+              <p className="text-xs text-blue-700 font-bold uppercase">Tổng tiền lúa</p>
+              <p className="text-xl font-black text-blue-800 mt-1">
+                {tlKetQuaHienTai.tongTienLua.toLocaleString("vi-VN")} đ
+              </p>
+            </div>
           </div>
+
+          <div className="bg-green-50 border-2 border-green-500 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div>
+              <p className="text-gray-600 font-bold text-sm">
+                Đã đặt cọc trước:
+              </p>
+              <p className="text-lg font-bold text-gray-700">
+                {(parseFloat(tlKetQuaHienTai.tienCoc) || 0).toLocaleString("vi-VN")} đ
+              </p>
+            </div>
+            <div className="text-center sm:text-right">
+              <p className="text-gray-600 font-bold text-sm">
+                {tlKetQuaHienTai.thanhTien >= 0
+                  ? "👉 Thương lái cần thanh toán:"
+                  : "👉 Dư tiền cọc (Cần thối lại):"}
+              </p>
+              <p
+                className={`text-3xl font-black ${
+                  tlKetQuaHienTai.thanhTien >= 0 ? "text-green-700" : "text-amber-600"
+                }`}
+              >
+                {Math.abs(tlKetQuaHienTai.thanhTien).toLocaleString("vi-VN")} đ
+              </p>
+            </div>
+          </div>
+
+          {/* NÚT SAO CHÉP PHIẾU GỬI ZALO */}
+          <button
+            onClick={handleSaoChepPhieuZalo}
+            className="w-full py-3.5 bg-green-600 hover:bg-green-700 text-white font-extrabold text-base rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+          >
+            📋 Sao chép phiếu tính tiền (Gửi Zalo)
+          </button>
         </div>
 
         {/* TỔNG DOANH THU TẤT CẢ THƯƠNG LÁI */}
@@ -560,6 +933,11 @@ function App() {
             <p className="text-3xl font-black text-green-400 mt-1">
               {tongTienTatCaThuongLai.toLocaleString("vi-VN")} đ
             </p>
+          </div>
+          <div className="text-right">
+            <span className="text-xs bg-gray-800 text-gray-300 px-3 py-1.5 rounded-lg font-bold border border-gray-700">
+              {ketQuaThuongLai.length} Thương lái
+            </span>
           </div>
         </div>
       </div>
